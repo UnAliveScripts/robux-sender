@@ -1,318 +1,300 @@
-"use client";
+'use client';
 
-import React, { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import Header from "@/components/Header";
-import SettingsModal from "@/components/SettingsModal";
-import SendModal from "@/components/SendModal";
+import { useState } from 'react';
+import { Header } from '@/components/Header';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
+import {
+  RobuxIcon,
+  RobuxHexFlat,
+  IconHome,
+  IconProfile,
+  IconPlus,
+  IconMessages,
+  IconFriends,
+  IconAvatar,
+  IconInventory,
+  IconTrade,
+  IconStore,
+  IconGamepad,
+  IconTag,
+  IconTagUp,
+  IconArrowUp,
+  IconArrowsHorizontal,
+  IconChevronRight,
+  IconGift,
+  IconPaw,
+  IconEgg,
+} from '@/components/icons';
 
-interface Friend {
-  id: string;
-  name: string;
-  avatarUrl?: string;
-}
+const bonusPackages = [
+  { robux: 24000, extra: 22500, bonus: 1500, price: '£199.99', popular: false },
+  { robux: 11000, extra: 10000, bonus: 1000, price: '£99.99', popular: false },
+  { robux: 5250, extra: 4500, bonus: 750, price: '£49.99', popular: false },
+  { robux: 3625, extra: 3150, bonus: 475, price: '£34.99', popular: false },
+  { robux: 2000, extra: 1700, bonus: 300, price: '£19.99', popular: true },
+];
 
-export default function HomePage() {
-  const [showSettings, setShowSettings] = useState(false);
-  const [showSend, setShowSend] = useState(false);
-  const [username, setUsername] = useState("RobloxUser");
-  const [balance, setBalance] = useState(1250);
-  const [friends, setFriends] = useState<Friend[]>([
-    { id: "1", name: "Builderman", avatarUrl: undefined },
-    { id: "2", name: "Stickmasterluke", avatarUrl: undefined },
-  ]);
-  const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: "", visible: false });
+const standardPackages = [
+  { robux: 1500, extra: 1200, bonus: 300, price: '£14.99' },
+  { robux: 1000, extra: 800, bonus: 200, price: '£9.99' },
+  { robux: 500, extra: 400, bonus: 100, price: '£4.99' },
+];
 
-  useEffect(() => {
-    const savedUsername = localStorage.getItem("robux_username");
-    const savedBalance = localStorage.getItem("robux_balance");
-    const savedFriends = localStorage.getItem("robux_friends");
-    if (savedUsername) setUsername(savedUsername);
-    if (savedBalance) setBalance(parseInt(savedBalance, 10));
-    if (savedFriends) {
-      try {
-        setFriends(JSON.parse(savedFriends));
-      } catch {}
-    }
-  }, []);
+const plusBenefits = [
+  { Icon: IconTag, title: '10% off in-game items, avatars and more', desc: 'Spend less Robux starting now' },
+  { Icon: IconTagUp, title: '20% off these items after 2 months', desc: 'Double your discount and lock it in' },
+  { Icon: IconGamepad, title: 'Free and unlimited private servers', desc: 'Choose who you play with' },
+  { Icon: RobuxIcon, title: 'Send Robux for free', desc: 'Transfers may need parental approval' },
+  { Icon: IconArrowsHorizontal, title: 'Trade and resell limited items', desc: 'Build your collection of rare avatars' },
+  { Icon: IconArrowUp, title: 'Publish games and avatar items', desc: 'Reach millions of players' },
+];
 
-  const saveSettings = (newUsername: string, newBalance: number, newFriends: Friend[]) => {
-    setUsername(newUsername);
-    setBalance(newBalance);
-    setFriends(newFriends);
-    localStorage.setItem("robux_username", newUsername);
-    localStorage.setItem("robux_balance", String(newBalance));
-    localStorage.setItem("robux_friends", JSON.stringify(newFriends));
+const leftNavItems = [
+  { icon: IconHome, label: 'Home', active: false },
+  { icon: IconProfile, label: 'Profile', active: false },
+  { icon: IconPlus, label: 'Roblox Plus', active: true },
+  { icon: IconMessages, label: 'Messages', active: false, badge: 5 },
+  { icon: IconFriends, label: 'Friends', active: false, badge: 9 },
+  { icon: IconAvatar, label: 'Avatar', active: false },
+  { icon: IconInventory, label: 'Inventory', active: false },
+  { icon: IconTrade, label: 'Trade', active: false },
+  { icon: IconStore, label: 'Official Store', active: false },
+];
+
+export default function Home() {
+  const [settings, setSettings] = useLocalStorage('robux-settings', {
+    username: 'RoBeatsGreenSword',
+    robuxBalance: 237,
+  });
+
+  const username = settings.username || 'RoBeatsGreenSword';
+  const balance = settings.robuxBalance ?? 237;
+
+  const handleSettingsChange = (newUsername: string, newBalance: number) => {
+    setSettings({ username: newUsername, robuxBalance: newBalance });
   };
-
-  const showToast = useCallback((message: string) => {
-    setToast({ message, visible: true });
-    setTimeout(() => setToast({ message: "", visible: false }), 4000);
-  }, []);
-
-  const handleSend = (amount: number, recipientName: string) => {
-    setBalance((prev) => prev - amount);
-    showToast(`You sent ${amount.toLocaleString()} Robux to ${recipientName}`);
-    setShowSend(false);
-  };
-
-  const packages = [
-    { robux: 400, price: "$4.99", bonus: "0" },
-    { robux: 800, price: "$9.99", bonus: "0" },
-    { robux: 1700, price: "$19.99", bonus: "0" },
-    { robux: 4500, price: "$49.99", bonus: "0" },
-    { robux: 10000, price: "$99.99", bonus: "0" },
-  ];
 
   return (
-    <div className="wrap no-gutter-ads logged-out">
-      <Header
-        username={username}
-        balance={balance}
-        onOpenSettings={() => setShowSettings(true)}
-        onOpenSend={() => setShowSend(true)}
-      />
+    <div className="min-h-screen bg-[#111111] text-white">
+      <Header username={username} balance={balance} onSettingsChange={handleSettingsChange} />
 
-      <main className="container-main content-no-ads" id="container-main" tabIndex={-1}>
-        <div className="content" id="content">
-          <div id="robux-redesign-page" className="robux-redesign-page">
-            <div className="buy-robux-background"></div>
-            <div className="buy-robux-content">
-              <div className="text-section">
-                <h1 className="text-section-title buy-robux-section-header">Get Robux</h1>
-                <p className="text-section-subtitle buy-robux-section-header" style={{ marginTop: "8px" }}>
-                  Robux allows you to purchase upgrades for your avatar or buy special abilities in experiences.
-                </p>
-              </div>
+      {/* Top Balance Bar */}
+      <div className="bg-[#181818] border-b border-[#222222]">
+        <div className="max-w-5xl mx-auto px-4 py-2 flex items-center justify-center gap-2 text-xs text-gray-400">
+          <span className="opacity-75">{username} (0)</span>
+          <span className="mx-1">|</span>
+          <span>Balance: {balance.toLocaleString()} Robux</span>
+        </div>
+      </div>
 
-              <div className="section-container">
-                <div className="section-header" style={{ marginBottom: "16px" }}>
-                  <h2 className="font-header-2 text-header" style={{ fontSize: "20px", fontWeight: 700, color: "#272930" }}>
-                    Robux Packages
-                  </h2>
-                </div>
-                <div
-                  className="package-grid"
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
-                    gap: "16px",
-                  }}
-                >
-                  {packages.map((pkg) => (
-                    <div
-                      key={pkg.robux}
-                      className="package-card"
-                      style={{
-                        backgroundColor: "#fff",
-                        borderRadius: "12px",
-                        padding: "16px",
-                        textAlign: "center",
-                        boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
-                        border: "1px solid rgba(0,0,0,0.06)",
-                        cursor: "pointer",
-                        transition: "transform 0.15s ease, box-shadow 0.15s ease",
-                      }}
-                      onMouseEnter={(e) => {
-                        (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)";
-                        (e.currentTarget as HTMLDivElement).style.boxShadow = "0 4px 12px rgba(0,0,0,0.12)";
-                      }}
-                      onMouseLeave={(e) => {
-                        (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
-                        (e.currentTarget as HTMLDivElement).style.boxShadow = "0 1px 3px rgba(0,0,0,0.08)";
-                      }}
-                    >
-                      <div style={{ marginBottom: "12px" }}>
-                        <img
-                          src="/images/28cef7d049096fa2b31630f1c094da3e-robux_156x169.png"
-                          alt="Robux"
-                          width={78}
-                          height={84}
-                          style={{ display: "block", margin: "0 auto" }}
-                        />
-                      </div>
-                      <div style={{ fontSize: "18px", fontWeight: 700, color: "#272930", marginBottom: "4px" }}>
-                        {pkg.robux.toLocaleString()}
-                      </div>
-                      <div style={{ fontSize: "14px", fontWeight: 600, color: "#494d5a" }}>{pkg.price}</div>
-                      <button
-                        className="btn-buy"
-                        style={{
-                          marginTop: "12px",
-                          width: "100%",
-                          backgroundColor: "#00b06f",
-                          color: "#fff",
-                          border: "none",
-                          borderRadius: "8px",
-                          padding: "8px 0",
-                          fontSize: "14px",
-                          fontWeight: 600,
-                          cursor: "pointer",
-                        }}
-                        onClick={() => setShowSend(true)}
-                      >
-                        Buy
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
+      {/* Hero Grid Background */}
+      <div className="relative overflow-hidden">
+        <div
+          className="absolute inset-0 opacity-[0.12]"
+          style={{
+            backgroundImage: `linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px)`,
+            backgroundSize: '48px 48px',
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#111111]/60 to-[#111111]" />
 
-              <div className="section-container" style={{ marginTop: "32px" }}>
-                <div className="section-header" style={{ marginBottom: "16px" }}>
-                  <h2 className="font-header-2 text-header" style={{ fontSize: "20px", fontWeight: 700, color: "#272930" }}>
-                    Roblox Plus
-                  </h2>
-                </div>
-                <div
-                  className="subscription-card"
-                  style={{
-                    backgroundColor: "#fff",
-                    borderRadius: "12px",
-                    padding: "24px",
-                    boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
-                    border: "1px solid rgba(0,0,0,0.06)",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "16px" }}>
-                    <img
-                      src="/images/bc5f0a53bc666c421d91820f8319254d-premium_120x120.svg"
-                      alt="Roblox Plus"
-                      width={48}
-                      height={48}
-                    />
-                    <div>
-                      <div style={{ fontSize: "18px", fontWeight: 700, color: "#272930" }}>Roblox Plus</div>
-                      <div style={{ fontSize: "14px", color: "#494d5a" }}>Get exclusive benefits every month</div>
-                    </div>
+        <div className="relative max-w-3xl mx-auto px-4 pt-10 pb-6 text-center">
+          <h1 className="text-[28px] md:text-[36px] font-extrabold leading-tight tracking-tight">
+            Enjoy up to 25%<br />more Robux
+          </h1>
+        </div>
+      </div>
+
+      <div className="max-w-3xl mx-auto px-4 pb-20 space-y-8 relative">
+        {/* Bonus Item Section */}
+        <section className="animate-slide-up">
+          <h2 className="text-[15px] font-bold mb-3 tracking-tight">Bonus item we picked for you</h2>
+          <div className="bg-[#181818] rounded-2xl border border-[#2a2a2a] overflow-hidden">
+            <div className="relative h-36 overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-r from-pink-500/30 via-purple-500/30 to-blue-500/30" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="flex items-center gap-3">
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-pink-400 to-blue-500 flex items-center justify-center shadow-xl border border-white/10">
+                    <IconGift className="w-8 h-8 text-white" />
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "12px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "14px", color: "#494d5a" }}>
-                      <svg width="20" height="20" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M15.0762 7.29574C15.6479 6.96571 16.3521 6.96571 16.9238 7.29574L23.0762 10.8479C23.6479 11.1779 24 11.7878 24 12.4479V19.5521C24 20.2122 23.6479 20.8221 23.0762 21.1521L16.9238 24.7043C16.3521 25.0343 15.6479 25.0343 15.0762 24.7043L8.92376 21.1521C8.35214 20.8221 8 20.2122 8 19.5521V12.4479C8 11.7878 8.35214 11.1779 8.92376 10.8479L15.0762 7.29574ZM11.9998 13V19C11.9998 19.5523 12.4475 20 12.9998 20H18.9998C19.5521 20 19.9998 19.5523 19.9998 19V13C19.9998 12.4477 19.5521 12 18.9998 12H12.9998C12.4475 12 11.9998 12.4477 11.9998 13Z" fill="#494d5a"/>
-                      </svg>
-                      Receive a monthly Robux stipend
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <IconPaw className="w-3.5 h-3.5 text-gray-300" />
+                      <p className="text-sm font-bold">Adopt Me!</p>
+                      <IconEgg className="w-3.5 h-3.5 text-gray-300" />
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "14px", color: "#494d5a" }}>
-                      <svg width="20" height="20" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M15.0762 7.29574C15.6479 6.96571 16.3521 6.96571 16.9238 7.29574L23.0762 10.8479C23.6479 11.1779 24 11.7878 24 12.4479V19.5521C24 20.2122 23.6479 20.8221 23.0762 21.1521L16.9238 24.7043C16.3521 25.0343 15.6479 25.0343 15.0762 24.7043L8.92376 21.1521C8.35214 20.8221 8 20.2122 8 19.5521V12.4479C8 11.7878 8.35214 11.1779 8.92376 10.8479L15.0762 7.29574ZM11.9998 13V19C11.9998 19.5523 12.4475 20 12.9998 20H18.9998C19.5521 20 19.9998 19.5523 19.9998 19V13C19.9998 12.4477 19.5521 12 18.9998 12H12.9998C12.4475 12 11.9998 12.4477 11.9998 13Z" fill="#494d5a"/>
-                      </svg>
-                      10% bonus when buying Robux
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "14px", color: "#494d5a" }}>
-                      <svg width="20" height="20" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M15.0762 7.29574C15.6479 6.96571 16.3521 6.96571 16.9238 7.29574L23.0762 10.8479C23.6479 11.1779 24 11.7878 24 12.4479V19.5521C24 20.2122 23.6479 20.8221 23.0762 21.1521L16.9238 24.7043C16.3521 25.0343 15.6479 25.0343 15.0762 24.7043L8.92376 21.1521C8.35214 20.8221 8 20.2122 8 19.5521V12.4479C8 11.7878 8.35214 11.1779 8.92376 10.8479L15.0762 7.29574ZM11.9998 13V19C11.9998 19.5523 12.4475 20 12.9998 20H18.9998C19.5521 20 19.9998 19.5523 19.9998 19V13C19.9998 12.4477 19.5521 12 18.9998 12H12.9998C12.4475 12 11.9998 12.4477 11.9998 13Z" fill="#494d5a"/>
-                      </svg>
-                      Trade and resell items
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "14px", color: "#494d5a" }}>
-                      <svg width="20" height="20" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M15.0762 7.29574C15.6479 6.96571 16.3521 6.96571 16.9238 7.29574L23.0762 10.8479C23.6479 11.1779 24 11.7878 24 12.4479V19.5521C24 20.2122 23.6479 20.8221 23.0762 21.1521L16.9238 24.7043C16.3521 25.0343 15.6479 25.0343 15.0762 24.7043L8.92376 21.1521C8.35214 20.8221 8 20.2122 8 19.5521V12.4479C8 11.7878 8.35214 11.1779 8.92376 10.8479L15.0762 7.29574ZM11.9998 13V19C11.9998 19.5523 12.4475 20 12.9998 20H18.9998C19.5521 20 19.9998 19.5523 19.9998 19V13C19.9998 12.4477 19.5521 12 18.9998 12H12.9998C12.4475 12 11.9998 12.4477 11.9998 13Z" fill="#494d5a"/>
-                      </svg>
-                      Publish items and earn
-                    </div>
+                    <p className="text-xs text-gray-400">+1 Pet Per Slot</p>
                   </div>
                 </div>
               </div>
+            </div>
+            <div className="p-3 space-y-1.5">
+              {bonusPackages.map((pkg) => (
+                <div
+                  key={pkg.robux}
+                  className="flex items-center gap-3 p-3 rounded-xl hover:bg-[#1f1f1f] transition-colors"
+                >
+                  <div className="flex items-center gap-1.5 flex-1 flex-wrap">
+                    <RobuxHexFlat className="w-4 h-4 text-white flex-shrink-0" />
+                    <span className="text-sm font-bold">{pkg.robux.toLocaleString()}</span>
+                    <span className="text-xs text-gray-600 line-through">{pkg.extra.toLocaleString()}</span>
+                    <span className="text-[10px] bg-[#232323] text-gray-400 px-1.5 py-0.5 rounded-md font-medium">
+                      +{pkg.bonus} more
+                    </span>
+                    {pkg.popular && (
+                      <span className="text-[10px] bg-[#232323] text-gray-400 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-1">
+                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                        Popular
+                      </span>
+                    )}
+                  </div>
+                  <button className={`px-5 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 ${
+                    pkg.popular
+                      ? 'bg-[#3b82f6] hover:bg-[#2563eb] text-white'
+                      : 'bg-[#2a2a2a] hover:bg-[#333333] text-white'
+                  }`}>
+                    {pkg.price}
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
-      </main>
+        </section>
 
-      <footer className="container-footer" id="footer-container" data-is-giftcards-footer-enabled="True">
-        <div className="container-footer" style={{ backgroundColor: "#f7f7f8", padding: "40px 0", marginTop: "40px" }}>
-          <div className="container" style={{ maxWidth: "792px", margin: "0 auto", padding: "0 16px" }}>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "24px", justifyContent: "space-between" }}>
-              <div>
-                <div style={{ fontSize: "16px", fontWeight: 700, color: "#272930", marginBottom: "12px" }}>About Us</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  <a href="#" style={{ fontSize: "14px", color: "#494d5a", textDecoration: "none" }}>About Roblox</a>
-                  <a href="#" style={{ fontSize: "14px", color: "#494d5a", textDecoration: "none" }}>Careers</a>
-                  <a href="#" style={{ fontSize: "14px", color: "#494d5a", textDecoration: "none" }}>Technology</a>
+        {/* Robux Packages */}
+        <section className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
+          <h2 className="text-[15px] font-bold mb-3 tracking-tight">Robux packages</h2>
+          <div className="bg-[#181818] rounded-2xl border border-[#2a2a2a] p-3 space-y-1.5">
+            {standardPackages.map((pkg) => (
+              <div
+                key={pkg.robux}
+                className="flex items-center gap-3 p-3 rounded-xl hover:bg-[#1f1f1f] transition-colors"
+              >
+                <div className="flex items-center gap-1.5 flex-1 flex-wrap">
+                  <RobuxHexFlat className="w-4 h-4 text-white flex-shrink-0" />
+                  <span className="text-sm font-bold">{pkg.robux.toLocaleString()}</span>
+                  <span className="text-xs text-gray-600 line-through">{pkg.extra.toLocaleString()}</span>
+                  <span className="text-[10px] bg-[#232323] text-gray-400 px-1.5 py-0.5 rounded-md font-medium">
+                    +{pkg.bonus} more
+                  </span>
                 </div>
+                <button className="px-5 py-2 rounded-xl text-xs font-bold bg-[#2a2a2a] hover:bg-[#333333] text-white transition-all active:scale-95">
+                  {pkg.price}
+                </button>
               </div>
-              <div>
-                <div style={{ fontSize: "16px", fontWeight: 700, color: "#272930", marginBottom: "12px" }}>Parents</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  <a href="#" style={{ fontSize: "14px", color: "#494d5a", textDecoration: "none" }}>Parenting Guide</a>
-                  <a href="#" style={{ fontSize: "14px", color: "#494d5a", textDecoration: "none" }}>Account Controls</a>
-                  <a href="#" style={{ fontSize: "14px", color: "#494d5a", textDecoration: "none" }}>Safety</a>
+            ))}
+          </div>
+        </section>
+
+        {/* New on Roblox - Plus Section */}
+        <section className="animate-slide-up" style={{ animationDelay: '0.2s' }}>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <RobuxHexFlat className="w-5 h-5 text-white" />
+              <h2 className="text-[15px] font-bold tracking-tight">New on Roblox</h2>
+            </div>
+            <button className="text-xs text-gray-400 hover:text-white transition-colors font-medium">
+              Learn more
+            </button>
+          </div>
+
+          <div className="bg-[#181818] rounded-2xl border border-[#2a2a2a] overflow-hidden">
+            {/* Plus Hero */}
+            <div className="relative p-8 text-center">
+              <div
+                className="absolute inset-0 opacity-[0.08]"
+                style={{
+                  backgroundImage: `linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px)`,
+                  backgroundSize: '40px 40px',
+                }}
+              />
+              <div className="relative">
+                <div className="flex items-center justify-center gap-2 mb-3">
+                  <RobuxHexFlat className="w-5 h-5 text-white" />
+                  <span className="text-sm font-bold">Roblox Plus</span>
                 </div>
-              </div>
-              <div>
-                <div style={{ fontSize: "16px", fontWeight: 700, color: "#272930", marginBottom: "12px" }}>Legal</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  <a href="#" style={{ fontSize: "14px", color: "#494d5a", textDecoration: "none" }}>Terms of Use</a>
-                  <a href="#" style={{ fontSize: "14px", color: "#494d5a", textDecoration: "none" }}>Privacy Policy</a>
-                  <a href="#" style={{ fontSize: "14px", color: "#494d5a", textDecoration: "none" }}>Cookie Policy</a>
-                </div>
+                <h3 className="text-2xl md:text-[32px] font-extrabold mb-2 tracking-tight">
+                  Our best deal. Unlock 20% off.
+                </h3>
+                <p className="text-sm text-gray-400 mb-5">1 month free, then CA$6.99/month</p>
+                <button className="bg-[#3b82f6] hover:bg-[#2563eb] text-white font-bold px-8 py-3 rounded-xl transition-all active:scale-95 text-sm">
+                  Try it for free
+                </button>
               </div>
             </div>
-            <div style={{ marginTop: "32px", paddingTop: "16px", borderTop: "1px solid rgba(0,0,0,0.08)", fontSize: "12px", color: "#6a6f81" }}>
-              © 2025 Roblox Corporation. All Rights Reserved.
+
+            {/* Benefits Grid */}
+            <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {plusBenefits.map((benefit, i) => (
+                <div
+                  key={i}
+                  className="flex items-start gap-3 p-3 rounded-xl bg-[#1a1a1a] border border-[#2a2a2a]"
+                >
+                  <div className="w-9 h-9 rounded-lg bg-[#232323] flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <benefit.Icon className="w-4 h-4 text-gray-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold leading-snug">{benefit.title}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{benefit.desc}</p>
+                  </div>
+                </div>
+              ))}
             </div>
+
+            <div className="px-4 pb-4">
+              <p className="text-[11px] text-gray-600 leading-relaxed">
+                By clicking &quot;Try it for free,&quot; you agree to the <span className="text-[#3b82f6] hover:underline cursor-pointer">Roblox Subscription Terms</span>. Your 1-month free trial ends on May 30, 2026 and you will be charged automatically each month and can cancel at any time.
+              </p>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      {/* Left Nav Sidebar Mock (desktop only, absolute positioning within content area) */}
+      <div className="fixed left-4 top-32 hidden xl:flex flex-col w-56">
+        <div className="space-y-0.5">
+          {leftNavItems.map((item) => (
+            <button
+              key={item.label}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${
+                item.active ? 'bg-[#2a2a2a] font-semibold text-white' : 'hover:bg-[#1f1f1f] text-gray-400'
+              }`}
+            >
+              <item.icon className={`w-[18px] h-[18px] ${item.active ? 'text-white' : 'text-gray-500'}`} />
+              <span className="flex-1 text-left">{item.label}</span>
+              {item.badge !== undefined && (
+                <span className="w-5 h-5 rounded-full bg-[#3b82f6] text-[10px] font-bold flex items-center justify-center text-white">
+                  {item.badge}
+                </span>
+              )}
+              {item.active && <IconChevronRight className="w-4 h-4 text-gray-500" />}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Footer */}
+      <footer className="border-t border-[#222222] bg-[#111111]">
+        <div className="max-w-5xl mx-auto px-4 py-8">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <RobuxHexFlat className="w-5 h-5 text-white fill-white" />
+              <span className="font-extrabold text-sm tracking-tight">Roblox</span>
+            </div>
+            <div className="flex items-center gap-5 text-[11px] text-gray-500 flex-wrap justify-center">
+              <span className="hover:text-white cursor-pointer transition-colors">About Us</span>
+              <span className="hover:text-white cursor-pointer transition-colors">Jobs</span>
+              <span className="hover:text-white cursor-pointer transition-colors">Blog</span>
+              <span className="hover:text-white cursor-pointer transition-colors">Parents</span>
+              <span className="hover:text-white cursor-pointer transition-colors">Gift Cards</span>
+              <span className="hover:text-white cursor-pointer transition-colors">Help</span>
+              <span className="hover:text-white cursor-pointer transition-colors">Terms</span>
+              <span className="hover:text-white cursor-pointer transition-colors">Privacy</span>
+            </div>
+            <p className="text-[11px] text-gray-600">&copy;2026 Roblox Corporation. All rights reserved.</p>
           </div>
         </div>
       </footer>
-
-      <AnimatePresence>
-        {showSettings && (
-          <SettingsModal
-            key="settings"
-            username={username}
-            balance={balance}
-            friends={friends}
-            onSave={saveSettings}
-            onClose={() => setShowSettings(false)}
-          />
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showSend && (
-          <SendModal
-            key="send"
-            balance={balance}
-            friends={friends}
-            onSend={handleSend}
-            onClose={() => setShowSend(false)}
-          />
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {toast.visible && (
-          <motion.div
-            key="toast"
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            className="toast-container"
-            style={{
-              position: "fixed",
-              bottom: "24px",
-              left: "50%",
-              transform: "translateX(-50%)",
-              zIndex: 1060,
-              backgroundColor: "#202227",
-              color: "#fff",
-              padding: "12px 24px",
-              borderRadius: "8px",
-              fontSize: "14px",
-              fontWeight: 500,
-              boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-            }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#39c582" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="20 6 9 17 4 12"/>
-            </svg>
-            {toast.message}
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

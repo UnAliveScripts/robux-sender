@@ -1,148 +1,82 @@
-"use client";
+'use client';
 
-import React from "react";
+import { useState } from 'react';
+import { SettingsModal } from './SettingsModal';
+import { SendModal } from './SendModal';
+import { RobuxHexFlat, IconSettings, IconSend, IconNavMenu } from './icons';
 
 interface HeaderProps {
   username: string;
   balance: number;
-  onOpenSettings: () => void;
-  onOpenSend: () => void;
+  onSettingsChange: (username: string, balance: number) => void;
 }
 
-export default function Header({ username, balance, onOpenSettings, onOpenSend }: HeaderProps) {
+export function Header({ username, balance, onSettingsChange }: HeaderProps) {
+  const [showSettings, setShowSettings] = useState(false);
+  const [showSend, setShowSend] = useState(false);
+
   return (
-    <div id="navigation-container" className="builder-font ixp-marketplace-rename-treatment">
-      <div id="header" className="navbar-fixed-top rbx-header" role="navigation">
-        <div className="container-fluid">
-          <div className="rbx-navbar-header">
-            <div id="header-menu-icon" className="rbx-nav-collapse">
-              <button type="button" className="btn-navigation-nav-menu-md menu-button">
-                <span className="icon-nav-menu"></span>
-              </button>
-            </div>
-            <div className="navbar-header">
-              <a id="nav-logo-link" className="navbar-brand" href="/">
-                <span className="icon-logo"></span>
-                <span className="icon-logo-r"></span>
-              </a>
+    <>
+      <header className="sticky top-0 z-40 bg-[#111111]/95 backdrop-blur-sm border-b border-[#222222]">
+        <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowSettings(true)}
+              className="p-2 rounded-lg hover:bg-[#222222] transition-colors"
+              title="Settings"
+            >
+              <IconSettings className="w-5 h-5 text-gray-400" />
+            </button>
+            <div className="flex items-center gap-2">
+              <RobuxHexFlat className="w-6 h-6 text-white" />
+              <span className="font-extrabold text-lg tracking-tight">Roblox</span>
             </div>
           </div>
-          <ul className="nav rbx-navbar hidden-xs hidden-sm col-md-5 col-lg-4">
-            <li>
-              <a id="nav-charts-md-link" className="font-header-2 nav-menu-title text-header" href="/charts">
-                Charts
-              </a>
-            </li>
-            <li>
-              <a id="nav-marketplace-md-link" className="font-header-2 nav-menu-title text-header" href="/catalog">
-                Marketplace
-              </a>
-            </li>
-            <li>
-              <a id="header-develop-md-link" className="font-header-2 nav-menu-title text-header" href="/develop">
-                Create
-              </a>
-            </li>
-            <li id="navigation-robux-container">
-              <a className="font-header-2 nav-menu-title text-header" href="/upgrades/robux">
-                <span className="icon-robux-28x28 icon-robux"></span>
-                <span>Robux</span>
-              </a>
-            </li>
-          </ul>
-          <div id="right-navigation-header" className="rbx-navbar-right">
-            <div className="navbar-right">
-              <ul className="nav navbar-right">
-                <li className="navbar-right-item">
-                  <button
-                    type="button"
-                    className="btn-growth-md btn-min-width"
-                    onClick={onOpenSend}
-                    style={{
-                      backgroundColor: "#00b06f",
-                      borderColor: "#00b06f",
-                      color: "#fff",
-                      fontWeight: 500,
-                      padding: "8px 16px",
-                      borderRadius: "8px",
-                      border: "none",
-                      cursor: "pointer",
-                      fontSize: "14px",
-                      lineHeight: "20px",
-                    }}
-                  >
-                    Send
-                  </button>
-                </li>
-                <li className="navbar-right-item">
-                  <button
-                    type="button"
-                    className="btn-growth-md btn-min-width"
-                    onClick={onOpenSettings}
-                    style={{
-                      backgroundColor: "transparent",
-                      border: "1px solid rgba(255,255,255,0.3)",
-                      color: "#fff",
-                      fontWeight: 500,
-                      padding: "8px 12px",
-                      borderRadius: "8px",
-                      cursor: "pointer",
-                      fontSize: "14px",
-                      lineHeight: "20px",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px",
-                    }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="3"/>
-                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                    </svg>
-                    Settings
-                  </button>
-                </li>
-                <li className="navbar-right-item">
-                  <div
-                    className="rbx-menu-item"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      color: "#fff",
-                      fontSize: "14px",
-                      fontWeight: 500,
-                      padding: "8px 12px",
-                    }}
-                  >
-                    <span className="icon-robux-16x16 icon-robux-gold-16x16" style={{ backgroundImage: "url(/images/e3fed0d20e85a51518b2756e66343a5e-economy_small_dark.svg)", width: 20, height: 20, display: "inline-block", backgroundSize: "contain", backgroundRepeat: "no-repeat" }}></span>
-                    <span>{balance.toLocaleString()}</span>
-                  </div>
-                </li>
-                <li className="navbar-right-item">
-                  <div
-                    className="rbx-menu-item"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      color: "#fff",
-                      fontSize: "14px",
-                      fontWeight: 500,
-                      padding: "8px 12px",
-                    }}
-                  >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                      <circle cx="12" cy="7" r="4"/>
-                    </svg>
-                    <span>{username || "Guest"}</span>
-                  </div>
-                </li>
-              </ul>
+
+          {/* Desktop nav links */}
+          <nav className="hidden md:flex items-center gap-6 text-sm font-semibold">
+            <span className="text-gray-400 hover:text-white cursor-pointer transition-colors">Charts</span>
+            <span className="text-gray-400 hover:text-white cursor-pointer transition-colors">Marketplace</span>
+            <span className="text-gray-400 hover:text-white cursor-pointer transition-colors">Create</span>
+          </nav>
+
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 bg-[#1a1a1a] px-3 py-1.5 rounded-full border border-[#2a2a2a]">
+              <RobuxHexFlat className="w-4 h-4 text-white" />
+              <span className="text-sm font-bold">{balance.toLocaleString()}</span>
             </div>
+            <button
+              onClick={() => setShowSend(true)}
+              className="flex items-center gap-1.5 bg-[#2a2a2a] hover:bg-[#333333] text-white px-3 py-1.5 rounded-lg text-sm font-semibold transition-all active:scale-95"
+            >
+              <IconSend className="w-3.5 h-3.5" />
+              Send
+            </button>
           </div>
         </div>
-      </div>
-    </div>
+      </header>
+
+      {showSettings && (
+        <SettingsModal
+          currentUsername={username}
+          currentBalance={balance}
+          onSave={(u, b) => {
+            onSettingsChange(u, b);
+            setShowSettings(false);
+          }}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
+
+      {showSend && (
+        <SendModal
+          balance={balance}
+          onClose={() => setShowSend(false)}
+          onSend={(amount) => {
+            onSettingsChange(username, balance - amount);
+          }}
+        />
+      )}
+    </>
   );
 }

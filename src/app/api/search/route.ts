@@ -1,62 +1,53 @@
-import { NextRequest, NextResponse } from "next/server";
-
-export async function GET(request: NextRequest) {
+export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const keyword = searchParams.get("keyword");
-  const limit = searchParams.get("limit") || "10";
+  const keyword = searchParams.get('keyword');
 
   if (!keyword) {
-    return NextResponse.json({ error: "Missing keyword" }, { status: 400 });
+    return Response.json({ error: 'Keyword required' }, { status: 400 });
   }
 
   try {
-    // Search users via Roblox API
-    const searchRes = await fetch(
-      `https://users.roblox.com/v1/users/search?keyword=${encodeURIComponent(keyword)}&limit=${limit}`,
-      { headers: { "Content-Type": "application/json" } }
+    const res = await fetch(
+      `https://users.roblox.com/v1/users/search?keyword=${encodeURIComponent(keyword)}&limit=10`,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        next: { revalidate: 0 },
+      }
     );
 
-    if (!searchRes.ok) {
-      return NextResponse.json(
-        { error: "Roblox API error" },
-        { status: searchRes.status }
-      );
+    if (!res.ok) {
+      return Response.json({ error: 'Roblox API error' }, { status: res.status });
     }
 
-    const searchData = await searchRes.json();
-    const users = searchData.data || [];
+    const data = await res.json();
+    const users = data.data || [];
 
-    if (users.length === 0) {
-      return NextResponse.json({ data: [] });
+    if (users.length > 0) {
+      const userIds = users.map((u: any) => u.id).join(',');
+      try {
+        const thumbRes = await fetch(
+          `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userIds}&size=150x150&format=Png`,
+          { next: { revalidate: 0 } }
+        );
+        if (thumbRes.ok) {
+          const thumbData = await thumbRes.json();
+          const urlMap: Record<number, string> = {};
+          for (const t of thumbData.data || []) {
+            if (t.imageUrl) urlMap[t.targetId] = t.imageUrl;
+          }
+          for (const u of users) {
+            u.avatarUrl = urlMap[u.id] || '';
+          }
+        }
+      } catch {
+        // ignore thumbnail errors
+      }
     }
 
-    // Fetch avatars for found users
-    const userIds = users.map((u: any) => u.id);
-    const avatarRes = await fetch(
-      `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userIds.join(",")}&size=150x150&format=Png`,
-      { headers: { "Content-Type": "application/json" } }
-    );
-
-    let avatars: any[] = [];
-    if (avatarRes.ok) {
-      const avatarData = await avatarRes.json();
-      avatars = avatarData.data || [];
-    }
-
-    // Merge avatar URLs into user data
-    const merged = users.map((user: any) => {
-      const avatar = avatars.find((a: any) => a.targetId === user.id);
-      return {
-        ...user,
-        avatarUrl: avatar?.imageUrl || null,
-      };
-    });
-
-    return NextResponse.json({ data: merged });
+    return Response.json({ data: users });
   } catch (err) {
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return Response.json({ error: 'Failed to fetch' }, { status: 500 });
   }
 }

@@ -1,547 +1,348 @@
-"use client";
+'use client';
 
-import React, { useState, useEffect, useRef } from "react";
-import { motion } from "framer-motion";
-
-interface Friend {
-  id: string;
-  name: string;
-  avatarUrl?: string;
-}
-
-interface SearchUser {
-  id: number;
-  name: string;
-  displayName: string;
-  avatarUrl?: string;
-}
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
+import {
+  IconX,
+  IconSearch,
+  RobuxHexFlat,
+  IconLoader,
+  IconChevronRight,
+  IconCheck,
+} from './icons';
+import type { Friend, RobloxUser } from '@/types';
 
 interface SendModalProps {
   balance: number;
-  friends: Friend[];
-  onSend: (amount: number, recipientName: string) => void;
   onClose: () => void;
+  onSend: (amount: number) => void;
 }
 
-const presetAmounts = [10, 50, 100, 200, 500, 1000, 2500, 5000, 10000];
+type Step = 'select' | 'amount' | 'confirm';
 
-export default function SendModal({ balance, friends, onSend, onClose }: SendModalProps) {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<SearchUser | Friend | null>(null);
-  const [amount, setAmount] = useState<number | null>(null);
-  const [customAmount, setCustomAmount] = useState("");
-  const [confirming, setConfirming] = useState(false);
-  const [error, setError] = useState("");
-  const searchTimeout = useRef<NodeJS.Timeout | null>(null);
+export function SendModal({ balance, onClose, onSend }: SendModalProps) {
+  const [step, setStep] = useState<Step>('select');
+  const [selectedUser, setSelectedUser] = useState<RobloxUser | Friend | null>(null);
+  const [amount, setAmount] = useState(0);
+  const [customAmount, setCustomAmount] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<RobloxUser[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [sentAmount, setSentAmount] = useState(0);
+  const [friends] = useLocalStorage<Friend[]>('robux-friends', []);
 
   useEffect(() => {
-    if (searchQuery.trim().length < 2) {
-      setSearchResults([]);
-      return;
-    }
-    if (searchTimeout.current) clearTimeout(searchTimeout.current);
-    searchTimeout.current = setTimeout(() => {
-      performSearch(searchQuery);
-    }, 400);
-    return () => {
-      if (searchTimeout.current) clearTimeout(searchTimeout.current);
-    };
+    const timeout = setTimeout(() => {
+      if (searchQuery.trim().length >= 2) {
+        doSearch(searchQuery);
+      } else {
+        setSearchResults([]);
+      }
+    }, 300);
+    return () => clearTimeout(timeout);
   }, [searchQuery]);
 
-  const performSearch = async (query: string) => {
-    setSearching(true);
-    setError("");
+  async function doSearch(query: string) {
+    setIsSearching(true);
     try {
-      const res = await fetch(`/api/search?keyword=${encodeURIComponent(query)}&limit=8`);
-      if (!res.ok) throw new Error("Search failed");
-      const data = await res.json();
-      setSearchResults(data.data || []);
-    } catch {
-      setError("Unable to search users. Please try again.");
-      setSearchResults([]);
-    } finally {
-      setSearching(false);
+      const res = await fetch(`/api/search?keyword=${encodeURIComponent(query)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSearchResults(data.data || []);
+      }
+    } catch (e) {
+      console.error(e);
     }
-  };
+    setIsSearching(false);
+  }
 
-  const pickAmount = (val: number) => {
-    setAmount(val);
-    setCustomAmount("");
-    setError("");
-  };
+  function handleSelectUser(user: RobloxUser | Friend) {
+    setSelectedUser(user);
+    setStep('amount');
+    setSearchQuery('');
+    setSearchResults([]);
+  }
 
-  const pickCustom = () => {
-    const val = parseInt(customAmount, 10);
-    if (!isNaN(val) && val > 0) {
-      setAmount(val);
-      setError("");
+  function handleAmountSelect(amt: number) {
+    setAmount(amt);
+    setCustomAmount('');
+  }
+
+  function handleNext() {
+    if (step === 'amount') {
+      const finalAmount = amount || parseInt(customAmount) || 0;
+      if (finalAmount > 0 && finalAmount <= balance) {
+        setAmount(finalAmount);
+        setStep('confirm');
+      }
+    } else if (step === 'confirm') {
+      onSend(amount);
+      setSentAmount(amount);
+      setShowToast(true);
+      setTimeout(() => {
+        setShowToast(false);
+        onClose();
+      }, 2500);
     }
-  };
+  }
 
-  const handleConfirm = () => {
-    if (!selectedUser || !amount || amount <= 0) return;
-    if (amount > balance) {
-      setError("You don't have enough Robux.");
-      return;
-    }
-    setConfirming(true);
-  };
+  const presetAmounts = [25, 50, 100, 200];
+  const finalAmount = amount || parseInt(customAmount) || 0;
 
-  const finalizeSend = () => {
-    if (!selectedUser || !amount) return;
-    const recipientName = getUserName(selectedUser);
-    onSend(amount, recipientName);
-  };
-
-  const getUserName = (user: SearchUser | Friend): string => {
-    if ("displayName" in user) return user.displayName || user.name;
-    return user.name;
-  };
-  const getUserAvatar = (user: SearchUser | Friend): string | undefined => {
-    if ("avatarUrl" in user) return user.avatarUrl;
-    return undefined;
-  };
-  const userName = selectedUser ? getUserName(selectedUser) : "";
-  const userAvatar = selectedUser ? getUserAvatar(selectedUser) : undefined;
+  const userAvatarUrl = selectedUser
+    ? (selectedUser as any).avatarUrl || `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${(selectedUser as any).id}&size=150x150&format=Png`
+    : '';
 
   return (
-    <motion.div
-      className="modal-overlay"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 1050,
-        backgroundColor: "rgba(32, 34, 39, 0.55)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "16px",
-      }}
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" />
       <motion.div
-        className="modal-dialog"
-        initial={{ scale: 0.92, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.92, opacity: 0 }}
-        transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        style={{
-          backgroundColor: "#fff",
-          borderRadius: "12px",
-          width: "100%",
-          maxWidth: "480px",
-          maxHeight: "85vh",
-          overflow: "auto",
-          boxShadow: "0 20px 48px rgba(0,0,0,0.25)",
-        }}
-        onClick={(e) => e.stopPropagation()}
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        onClick={e => e.stopPropagation()}
+        className="relative w-full max-w-sm bg-[#181818] rounded-2xl border border-[#2a2a2a] shadow-2xl overflow-hidden"
       >
-        <div style={{ padding: "24px" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
-            <h2 style={{ fontSize: "20px", fontWeight: 700, color: "#272930", margin: 0 }}>
-              {confirming ? "Confirm Send" : "Send Robux"}
-            </h2>
-            <button
-              onClick={onClose}
-              style={{
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                padding: "4px",
-                borderRadius: "6px",
-                color: "#494d5a",
-              }}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-[#2a2a2a]">
+          <div className="flex items-center gap-2">
+            <RobuxHexFlat className="w-5 h-5 text-gray-400" />
+            <h2 className="text-lg font-bold tracking-tight">Send Robux</h2>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <RobuxHexFlat className="w-4 h-4 text-gray-400" />
+              <span className="text-sm font-bold">{balance.toLocaleString()}</span>
+            </div>
+            <button onClick={onClose} className="p-1 hover:bg-[#2a2a2a] rounded-lg transition-colors">
+              <IconX className="w-5 h-5 text-gray-400" />
             </button>
           </div>
+        </div>
 
-          {!confirming ? (
-            <>
-              {!selectedUser ? (
-                <>
-                  <div style={{ marginBottom: "16px" }}>
-                    <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#272930", marginBottom: "6px" }}>
-                      Search Player
-                    </label>
-                    <div style={{ position: "relative" }}>
-                      <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => {
-                          setSearchQuery(e.target.value);
-                          setSelectedUser(null);
-                        }}
-                        placeholder="Search by username..."
-                        style={{
-                          width: "100%",
-                          padding: "10px 12px 10px 36px",
-                          fontSize: "14px",
-                          borderRadius: "8px",
-                          border: "1px solid rgba(0,0,0,0.12)",
-                          outline: "none",
-                          color: "#272930",
-                        }}
-                      />
-                      <svg
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="#6a6f81"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)" }}
+        <div className="p-4">
+          <AnimatePresence mode="wait">
+            {step === 'select' && (
+              <motion.div
+                key="select"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-4"
+              >
+                <div className="relative">
+                  <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="w-full bg-[#232323] border border-[#333333] rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#3b82f6] focus:ring-1 focus:ring-[#3b82f6] transition-all"
+                    placeholder="Search by username"
+                    autoFocus
+                  />
+                  {isSearching && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin">
+                      <IconLoader className="w-4 h-4 text-gray-500" />
+                    </div>
+                  )}
+                </div>
+
+                {searchResults.length > 0 && (
+                  <div className="bg-[#1a1a1a] rounded-xl border border-[#2a2a2a] overflow-hidden">
+                    {searchResults.map((user) => (
+                      <button
+                        key={user.id}
+                        onClick={() => handleSelectUser(user)}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-[#222222] transition-colors text-left"
                       >
-                        <circle cx="11" cy="11" r="8" />
-                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                      </svg>
-                    </div>
+                        <img
+                          src={user.avatarUrl || `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${user.id}&size=150x150&format=Png`}
+                          alt=""
+                          className="w-8 h-8 rounded-full bg-[#2a2a2a] object-cover"
+                          onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold truncate">{user.displayName}</p>
+                          <p className="text-xs text-gray-500 truncate">@{user.name}</p>
+                        </div>
+                        <IconChevronRight className="w-4 h-4 text-gray-500" />
+                      </button>
+                    ))}
                   </div>
+                )}
 
-                  {searching && (
-                    <div style={{ textAlign: "center", padding: "16px", color: "#6a6f81", fontSize: "14px" }}>Searching...</div>
-                  )}
-
-                  {searchResults.length > 0 && (
-                    <div style={{ marginBottom: "16px" }}>
-                      <div style={{ fontSize: "12px", fontWeight: 700, color: "#6a6f81", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "8px" }}>
-                        Search Results
-                      </div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                        {searchResults.map((user) => (
-                          <button
-                            key={user.id}
-                            onClick={() => {
-                              setSelectedUser(user);
-                              setSearchResults([]);
-                              setSearchQuery("");
-                            }}
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "12px",
-                              padding: "10px 12px",
-                              backgroundColor: "#f7f7f8",
-                              borderRadius: "8px",
-                              border: "none",
-                              cursor: "pointer",
-                              textAlign: "left",
-                              width: "100%",
-                            }}
-                          >
-                            <img
-                              src={user.avatarUrl || "/images/60bedb6518a319544c9445c519ba8d0e-robux_130x130.svg"}
-                              alt=""
-                              width={36}
-                              height={36}
-                              style={{ borderRadius: "50%", objectFit: "cover", backgroundColor: "#e3e3e6" }}
-                            />
-                            <div>
-                              <div style={{ fontSize: "14px", fontWeight: 600, color: "#272930" }}>{user.displayName || user.name}</div>
-                              <div style={{ fontSize: "12px", color: "#6a6f81" }}>@{user.name}</div>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {friends.length > 0 && !searchQuery && (
-                    <div style={{ marginBottom: "16px" }}>
-                      <div style={{ fontSize: "12px", fontWeight: 700, color: "#6a6f81", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "8px" }}>
-                        Recent Friends
-                      </div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                        {friends.map((friend) => (
-                          <button
-                            key={friend.id}
-                            onClick={() => setSelectedUser(friend)}
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "12px",
-                              padding: "10px 12px",
-                              backgroundColor: "#f7f7f8",
-                              borderRadius: "8px",
-                              border: "none",
-                              cursor: "pointer",
-                              textAlign: "left",
-                              width: "100%",
-                            }}
-                          >
-                            <img
-                              src={friend.avatarUrl || "/images/60bedb6518a319544c9445c519ba8d0e-robux_130x130.svg"}
-                              alt=""
-                              width={36}
-                              height={36}
-                              style={{ borderRadius: "50%", objectFit: "cover", backgroundColor: "#e3e3e6" }}
-                            />
-                            <div style={{ fontSize: "14px", fontWeight: 600, color: "#272930" }}>{friend.name}</div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "12px",
-                      padding: "12px",
-                      backgroundColor: "#f7f7f8",
-                      borderRadius: "10px",
-                      marginBottom: "20px",
-                    }}
-                  >
-                    <img
-                      src={userAvatar || "/images/60bedb6518a319544c9445c519ba8d0e-robux_130x130.svg"}
-                      alt=""
-                      width={40}
-                      height={40}
-                      style={{ borderRadius: "50%", objectFit: "cover", backgroundColor: "#e3e3e6" }}
-                    />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: "15px", fontWeight: 700, color: "#272930" }}>{userName}</div>
-                      <div style={{ fontSize: "12px", color: "#6a6f81" }}>Selected recipient</div>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setSelectedUser(null);
-                        setAmount(null);
-                        setCustomAmount("");
-                      }}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        color: "#1446ff",
-                        fontSize: "13px",
-                        fontWeight: 600,
-                      }}
-                    >
-                      Change
-                    </button>
-                  </div>
-
-                  <div style={{ marginBottom: "16px" }}>
-                    <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#272930", marginBottom: "8px" }}>
-                      Select Amount
-                    </label>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
-                      {presetAmounts.map((val) => (
+                {friends.length > 0 && (
+                  <div>
+                    <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">
+                      My friends ({friends.length})
+                    </p>
+                    <div className="space-y-1">
+                      {friends.map((friend) => (
                         <button
-                          key={val}
-                          onClick={() => pickAmount(val)}
-                          style={{
-                            padding: "10px",
-                            fontSize: "14px",
-                            fontWeight: 600,
-                            borderRadius: "8px",
-                            border: amount === val ? "2px solid #00b06f" : "1px solid rgba(0,0,0,0.12)",
-                            backgroundColor: amount === val ? "rgba(0,176,111,0.08)" : "#fff",
-                            color: amount === val ? "#00b06f" : "#272930",
-                            cursor: "pointer",
-                          }}
+                          key={friend.id}
+                          onClick={() => handleSelectUser(friend)}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 bg-[#1a1a1a] rounded-xl border border-[#2a2a2a] hover:bg-[#222222] transition-colors text-left"
                         >
-                          {val.toLocaleString()}
+                          <img
+                            src={friend.avatarUrl || `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${friend.id}&size=150x150&format=Png`}
+                            alt=""
+                            className="w-8 h-8 rounded-full bg-[#2a2a2a] object-cover"
+                            onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold truncate">{friend.displayName || friend.name}</p>
+                            <p className="text-xs text-gray-500 truncate">@{friend.name}</p>
+                          </div>
+                          <IconChevronRight className="w-4 h-4 text-gray-500" />
                         </button>
                       ))}
                     </div>
                   </div>
-
-                  <div style={{ marginBottom: "16px" }}>
-                    <label style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#272930", marginBottom: "6px" }}>
-                      Custom Amount
-                    </label>
-                    <div style={{ display: "flex", gap: "8px" }}>
-                      <input
-                        type="number"
-                        value={customAmount}
-                        onChange={(e) => {
-                          setCustomAmount(e.target.value);
-                          if (e.target.value) pickCustom();
-                        }}
-                        placeholder="Enter amount..."
-                        min={1}
-                        style={{
-                          flex: 1,
-                          padding: "10px 12px",
-                          fontSize: "14px",
-                          borderRadius: "8px",
-                          border: "1px solid rgba(0,0,0,0.12)",
-                          outline: "none",
-                          color: "#272930",
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: "12px",
-                      backgroundColor: "#f7f7f8",
-                      borderRadius: "8px",
-                      fontSize: "14px",
-                      color: "#494d5a",
-                    }}
-                  >
-                    <span>Your Balance</span>
-                    <span style={{ fontWeight: 700, color: "#272930" }}>{balance.toLocaleString()}</span>
-                  </div>
-                </>
-              )}
-
-              {error && (
-                <div style={{ marginTop: "12px", fontSize: "13px", color: "#df281f", fontWeight: 500 }}>{error}</div>
-              )}
-
-              <div style={{ marginTop: "24px", display: "flex", gap: "10px", justifyContent: "flex-end" }}>
-                <button
-                  onClick={onClose}
-                  style={{
-                    padding: "10px 18px",
-                    fontSize: "14px",
-                    fontWeight: 600,
-                    backgroundColor: "transparent",
-                    color: "#494d5a",
-                    border: "1px solid rgba(0,0,0,0.12)",
-                    borderRadius: "8px",
-                    cursor: "pointer",
-                  }}
-                >
-                  Cancel
-                </button>
-                {selectedUser && (
-                  <button
-                    onClick={handleConfirm}
-                    disabled={!amount || amount <= 0}
-                    style={{
-                      padding: "10px 18px",
-                      fontSize: "14px",
-                      fontWeight: 600,
-                      backgroundColor: !amount || amount <= 0 ? "#c8c8cf" : "#00b06f",
-                      color: "#fff",
-                      border: "none",
-                      borderRadius: "8px",
-                      cursor: !amount || amount <= 0 ? "not-allowed" : "pointer",
-                    }}
-                  >
-                    Next
-                  </button>
                 )}
-              </div>
-            </>
-          ) : (
-            <>
-              <div style={{ textAlign: "center", marginBottom: "24px" }}>
-                <img
-                  src={userAvatar || "/images/60bedb6518a319544c9445c519ba8d0e-robux_130x130.svg"}
-                  alt=""
-                  width={64}
-                  height={64}
-                  style={{ borderRadius: "50%", objectFit: "cover", backgroundColor: "#e3e3e6", margin: "0 auto 12px" }}
-                />
-                <div style={{ fontSize: "18px", fontWeight: 700, color: "#272930" }}>{userName}</div>
-                <div style={{ fontSize: "14px", color: "#6a6f81" }}>
-                  @{selectedUser?.name || ""}
-                </div>
-              </div>
+              </motion.div>
+            )}
 
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "8px",
-                  padding: "16px",
-                  backgroundColor: "#f7f7f8",
-                  borderRadius: "10px",
-                  marginBottom: "20px",
-                }}
+            {step === 'amount' && selectedUser && (
+              <motion.div
+                key="amount"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-5"
               >
-                <img
-                  src="/images/e3fed0d20e85a51518b2756e66343a5e-economy_small_dark.svg"
-                  alt="Robux"
-                  width={24}
-                  height={24}
-                />
-                <span style={{ fontSize: "28px", fontWeight: 800, color: "#272930" }}>{amount?.toLocaleString()}</span>
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "10px 0",
-                  borderBottom: "1px solid rgba(0,0,0,0.06)",
-                  fontSize: "14px",
-                  color: "#494d5a",
-                }}
-              >
-                <span>Remaining Balance</span>
-                <span style={{ fontWeight: 700, color: "#272930" }}>{(balance - (amount || 0)).toLocaleString()}</span>
-              </div>
-
-              {amount && amount > balance && (
-                <div style={{ marginTop: "12px", fontSize: "13px", color: "#df281f", fontWeight: 500 }}>
-                  You don't have enough Robux for this transaction.
-                </div>
-              )}
-
-              <div style={{ marginTop: "24px", display: "flex", gap: "10px", justifyContent: "flex-end" }}>
                 <button
-                  onClick={() => setConfirming(false)}
-                  style={{
-                    padding: "10px 18px",
-                    fontSize: "14px",
-                    fontWeight: 600,
-                    backgroundColor: "transparent",
-                    color: "#494d5a",
-                    border: "1px solid rgba(0,0,0,0.12)",
-                    borderRadius: "8px",
-                    cursor: "pointer",
-                  }}
+                  onClick={() => setStep('select')}
+                  className="text-xs text-gray-500 hover:text-white transition-colors flex items-center gap-1 font-medium"
                 >
-                  Back
+                  <IconChevronRight className="w-3 h-3 rotate-180" /> Back
                 </button>
+
+                <div className="flex flex-col items-center gap-3">
+                  <img
+                    src={userAvatarUrl}
+                    alt=""
+                    className="w-16 h-16 rounded-full bg-[#2a2a2a] object-cover"
+                    onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                  <p className="text-sm font-semibold">{selectedUser.displayName || selectedUser.name}</p>
+                </div>
+
+                <div className="flex items-center justify-center gap-2">
+                  <RobuxHexFlat className="w-6 h-6 text-white" />
+                  <span className="text-3xl font-bold tracking-tight">{finalAmount}</span>
+                </div>
+
+                <div className="grid grid-cols-4 gap-2">
+                  {presetAmounts.map((amt) => (
+                    <button
+                      key={amt}
+                      onClick={() => handleAmountSelect(amt)}
+                      className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-bold transition-all active:scale-95 ${
+                        amount === amt && !customAmount
+                          ? 'bg-[#3b82f6] text-white'
+                          : 'bg-[#2a2a2a] hover:bg-[#333333] text-white'
+                      }`}
+                    >
+                      <RobuxHexFlat className="w-3.5 h-3.5" />
+                      {amt}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="relative">
+                  <RobuxHexFlat className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <input
+                    type="number"
+                    value={customAmount}
+                    onChange={e => {
+                      setCustomAmount(e.target.value);
+                      setAmount(0);
+                    }}
+                    placeholder="Custom amount"
+                    className="w-full bg-[#232323] border border-[#333333] rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#3b82f6] focus:ring-1 focus:ring-[#3b82f6] transition-all"
+                  />
+                </div>
+
                 <button
-                  onClick={finalizeSend}
-                  disabled={!amount || amount > balance}
-                  style={{
-                    padding: "10px 18px",
-                    fontSize: "14px",
-                    fontWeight: 600,
-                    backgroundColor: !amount || amount > balance ? "#c8c8cf" : "#00b06f",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: "8px",
-                    cursor: !amount || amount > balance ? "not-allowed" : "pointer",
-                  }}
+                  onClick={handleNext}
+                  disabled={finalAmount <= 0 || finalAmount > balance}
+                  className="w-full bg-[#3b82f6] hover:bg-[#2563eb] disabled:bg-[#2a2a2a] disabled:text-gray-500 text-white font-bold py-3 rounded-xl transition-all active:scale-[0.98] disabled:active:scale-100"
+                >
+                  Next
+                </button>
+
+                <p className="text-xs text-gray-500 text-center">
+                  Robux are sent instantly with no fees
+                </p>
+              </motion.div>
+            )}
+
+            {step === 'confirm' && selectedUser && (
+              <motion.div
+                key="confirm"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-5"
+              >
+                <button
+                  onClick={() => setStep('amount')}
+                  className="text-xs text-gray-500 hover:text-white transition-colors flex items-center gap-1 font-medium"
+                >
+                  <IconChevronRight className="w-3 h-3 rotate-180" /> Back
+                </button>
+
+                <div className="flex flex-col items-center gap-3">
+                  <img
+                    src={userAvatarUrl}
+                    alt=""
+                    className="w-16 h-16 rounded-full bg-[#2a2a2a] object-cover"
+                    onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                  <p className="text-sm font-semibold">{selectedUser.displayName || selectedUser.name}</p>
+                </div>
+
+                <div className="bg-[#1a1a1a] rounded-xl border border-[#2a2a2a] p-4 text-center">
+                  <p className="text-xs text-gray-500 mb-1">Amount to send</p>
+                  <div className="flex items-center justify-center gap-2">
+                    <RobuxHexFlat className="w-5 h-5 text-white" />
+                    <span className="text-2xl font-bold tracking-tight">{amount}</span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleNext}
+                  className="w-full bg-[#3b82f6] hover:bg-[#2563eb] text-white font-bold py-3 rounded-xl transition-all active:scale-[0.98]"
                 >
                   Send Robux
                 </button>
-              </div>
-            </>
-          )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </motion.div>
-    </motion.div>
+
+      {/* Toast */}
+      <AnimatePresence>
+        {showToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[60] bg-[#181818] border border-[#2a2a2a] rounded-xl px-4 py-3 flex items-center gap-3 shadow-2xl"
+          >
+            <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center">
+              <IconCheck className="w-3 h-3 text-green-500" />
+            </div>
+            <span className="text-sm font-semibold">You sent {sentAmount} Robux</span>
+            <button onClick={() => setShowToast(false)} className="text-gray-500 hover:text-white">
+              <IconX className="w-4 h-4" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
